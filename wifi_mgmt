@@ -152,6 +152,9 @@ wifi_usage () {
         #status
         echo -e "       status"
         echo -e "               Query network connection status."
+    	#interfaces
+        echo -e "       interfaces"
+        echo -e "               Show interface numbers"
     	#interface
         echo -e "       interface [num]"
         echo -e "               Switch to another wlan[num] interface."
@@ -541,6 +544,10 @@ wifi_status() {
         fi
 }
 
+wifi_interfaces() {
+	ip link | grep wlan | wc -l
+}
+
 #Show the current interface or set interface
 wifi_interface() {
 	local set_interface=""
@@ -636,6 +643,9 @@ case "$1" in
 	signal)
 		wifi_signal
 		exit $?
+		;;
+	interfaces)
+		wifi_interfaces
 		;;
 	interface)
 		wifi_interface $2
