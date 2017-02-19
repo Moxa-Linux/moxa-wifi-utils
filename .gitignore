@@ -1,0 +1,5 @@
+debian/moxa-wifi-*/*
+debian/*.debhelper
+debian/*.debhelper.log
+debian/*.substvars
+debian/files

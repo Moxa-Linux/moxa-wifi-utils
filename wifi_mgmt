@@ -1,0 +1,660 @@
+#!/bin/bash
+#
+#       Copyright (C) MOXA Inc. All rights reserved.
+#       Copyright (C) 2015-2016 Wes Huang  <Wes.Huang@moxa.com>
+#       Copyright (C) 2017      Aeluin Chen  <aeluin.chen@moxa.com>
+#
+#       This software is distributed under the terms of the
+#       MOXA License.  See the file COPYING-MOXA for details.
+#
+#       wifi_mgmt
+#               wifi management.
+#
+
+
+#--------- initial Global variable ---------
+
+PKG="moxa-wifi-utils"
+VERSION="1.1.0"
+BUILDDATE="16072218"
+
+CONF_DIR=/etc/moxa-wifi-utils
+CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
+
+# Set interface
+if [ -f ${CONF_FILE} ] && cat ${CONF_FILE} | grep wlan* > /dev/null  ;then
+	INTERFACE=$(cat ${CONF_FILE})
+else
+	INTERFACE="wlan0"
+	echo wlan0 > ${CONF_FILE}
+fi
+
+WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
+WPACLI="wpa_cli -i ${INTERFACE}"
+
+# Set some settings if there are many wifi interfaces
+NUM_OF_INTERFACE=$(ip link | awk /wlan/{'print $2'} | wc -l)
+
+ORDER=""
+if [ X"$NUM_OF_INTERFACE" == X"1" ]; then
+	WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
+else
+	COUNT=0
+	for (( i=0; i<10; i++ ))
+	do
+		if ip link | grep "wlan$i" > /dev/null ; then
+			if [ X"$INTERFACE" == Xwlan"$i" ]; then
+				if [ X"$COUNT" == X"0" ]; then
+					ORDER=""
+					WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
+				else				
+					ORDER=$COUNT
+					WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant$ORDER.conf"
+				fi
+			fi
+			COUNT=$(( $COUNT + 1 ))
+		fi
+	done	
+fi
+
+#If there is no conf file, create a conf file
+set_wpa () {
+	if [ ! -f $WPA_CONF_FILE ]; then
+		cat > $WPA_CONF_FILE <<EOF
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+update_config=1
+EOF
+	fi
+}
+
+#Check the password is hex or not.
+ishex () {
+        if [ -z "$1" ]; then
+	        return 0
+        fi
+        case "$1" in
+                *[!0-9a-fA-F]*)
+                # plaintext
+                return 1
+                ;;
+        *)
+                # hexadecimal
+                return 0
+                ;;
+        esac
+}
+
+isnum () {
+	local i=0
+	local IS_NUM=0
+	for (( i=-150; i<99; i++ ))
+	do
+		if [ X"$1" == X"$i" ]; then
+			IS_NUM=1;
+			break
+		fi 
+	done
+	return $IS_NUM
+}
+
+# show wifi_mgmt usage list
+wifi_usage () {
+        echo -e "Usage:"
+        echo -e "      $0 [OPTIONS]\n"
+        echo -e "OPTIONS"
+        #start
+	echo -e "       start Type=[type] SSID=[ssid] Password=[password]"
+        echo -e "               Insert an AP information to the managed AP list and then connect to the AP."
+	echo -e ""
+	echo -e "               [type]        open/wep/wpa/wpa2"
+	echo -e "               [ssid]        access point's SSID"
+	echo -e "               [password]    access point's password"
+	echo -e ""
+	echo -e "               example:"
+	echo -e "                   wifi_mgmt start Type=wpa SSID=moxa_ap Password=moxa"
+	echo -e "                   wifi_mgmt start Type=open SSID=moxa_ap"
+	echo -e "       start [network id]"
+        echo -e "               Connect to AP by the managed AP list network id."
+        echo -e "       start"
+        echo -e "               Connect to the last time AP that was used."
+        #scan
+        echo -e "       scan -d"
+        echo -e "               Scan all the access points information and show the detail message."
+        #scan
+        echo -e "       scan"
+        echo -e "               Scan all the access points information."
+        #signal
+        echo -e "       signal"
+        echo -e "               Show the AP's signal."
+        #list
+        echo -e "       list"
+        echo -e "               Show the managed AP list."
+        #insert
+        echo -e "       insert Type=[type] SSID=[ssid] Password=[password]"
+        echo -e "               Insert a new AP information to the managed AP list."
+        echo -e ""
+        echo -e "               [type]        open/wep/wpa/wpa2"
+        echo -e "               [ssid]        access point's SSID"
+        echo -e "               [password]    access point's password"
+        echo -e ""
+        echo -e "               example:"
+        echo -e "                   wifi_mgmt insert Type=wpa SSID=moxa_ap Password=moxa"
+	#delete
+        echo -e "       delete [network id]"
+        echo -e "               Choose an AP network id to delete which is in the managed AP list."
+	#select
+        echo -e "       select [network id]"
+        echo -e "               Select an AP network id to connect which is in the managed AP list."
+        #stop
+        echo -e "       stop"
+        echo -e "               Stop network."
+        #status
+        echo -e "       status"
+        echo -e "               Query network connection status."
+    	#interface
+        echo -e "       interface [num]"
+        echo -e "               Switch to another wlan[num] interface."
+	echo -e ""
+	echo -e "               [num]    interface number"
+	echo -e ""
+	echo -e "               example:"
+	echo -e "                   wifi_mgmt interface 0"
+	echo -e "       interface"
+	echo -e "               Get the current setting interface."
+	#reconnect
+        echo -e "       reconnect"
+        echo -e "               Reconnect to the access point."
+	#restart
+        echo -e "       restart"
+        echo -e "               Stop wifi_mgmt then start it again."
+	#version
+	echo -e "       version"
+        echo -e "               Wifi management version."
+
+}
+
+#Connect to an AP and then use dhclient to get ip.
+wifi_dhclient() {
+	local connect_count=0
+        while [ $connect_count -lt 10 ]
+        do
+        	sleep 5
+		$WPACLI status | grep wpa_state
+                if $WPACLI status | grep COMPLETED > /dev/null ; then
+			sleep 3
+			if $WPACLI status | grep COMPLETED > /dev/null ; then	
+				break;
+			fi
+                fi
+                connect_count=$(( $connect_count + 1 ))
+        done
+	if [ $connect_count -eq 10 ]; then
+		echo "### Can't connect to AP ###"
+		echo "1. Make sure SSID is correct"
+                echo "2. Make sure password of AP is correct"
+                echo "3. Make sure encryption method is the same as AP"
+		wifi_stop
+		exit 1
+	fi
+	echo "*** Get DHCP IP address from AP ***"
+        dhclient $INTERFACE
+        if [ x"$?" != x"0" ]; then
+                echo "### Cannot get DHCP IP from AP! ###"
+                echo "1. Make sure SSID is correct"
+                echo "2. Make sure password of AP is correct"
+                echo "3. Make sure encryption method is the same as AP"
+        	echo "4. Make sure DHCP server of AP is enable"
+        else
+        	echo "*** Get DHCP IP from AP! ***"
+        fi
+}
+
+#Check whether wpa_supplicant is running
+wifi_check() {
+	if [ x"$(cat ${CONF_DIR}/wpa_supplicant.conf | grep network )" == x"" ]; then
+		echo 'network={' >> ${CONF_DIR}/wpa_supplicant.conf
+		echo '        ssid="Test"' >> ${CONF_DIR}/wpa_supplicant.conf
+		echo '        psk="testtest"' >> ${CONF_DIR}/wpa_supplicant.conf
+		echo '        key_mgmt=WPA-PSK' >> ${CONF_DIR}/wpa_supplicant.conf
+		echo '        group=CCMP TKIP' >> ${CONF_DIR}/wpa_supplicant.conf
+		echo '}' >> ${CONF_DIR}/wpa_supplicant.conf
+	fi
+
+
+	if [ -a /var/run/wpa_supplicant$ORDER.pid ]; then
+        	echo "wifi_mgmt is already run!"
+       		exit 1
+        else
+       		set_wpa
+        	${WPA_SUPPLICANT} -c$WPA_CONF_FILE -P/var/run/wpa_supplicant$ORDER.pid -Dnl80211 -B >/dev/null 2>&1
+	fi	
+}
+
+#Set AP information
+wifi_setting() {
+	local Type=""
+	local SSID=""
+	local Password=""
+	local NET_NUM=`wpa_cli add_network | tail -n +2`
+
+	for args in $@
+        do
+        	if [ "$(echo $args | grep "Type=")" ]; then
+                	Type="${args##*Type=}"
+                elif [ "$(echo $args | grep "SSID=")" ]; then
+                       	SSID="${args##*SSID=}"
+                elif [ "$(echo $args | grep "Password=")" ]; then
+                       	Password="${args##*Password=}"
+                else
+                       	echo "Unknown:$args"
+			$WPACLI remove_network $NET_NUM &> /dev/null
+			wifi_stop
+			exit 1
+                fi
+        done		
+
+	check_list=`wifi_mgmt list | awk '{print $2}' | grep $SSID`
+	if [ X"$check_list" != X"" ] && [ X"${#check_list}" == X"${#SSID}" ]; then
+		echo "This SSID is alreay in the managed AP list."
+		echo "Please use 'wifi_mgmt list' to check the managed AP number."
+		echo "You can use 'wifi_mgmt start [network id]' to start the connection."
+		echo "You also can use 'wifi_mgmt delete [network id]' to delete it from the list"
+		$WPACLI remove_network $NET_NUM &> /dev/null
+		wifi_list
+		wifi_stop &> /dev/null
+		exit 1
+	fi
+	
+	LEN=${#Password}
+	
+	$WPACLI remove_network $NET_NUM &> /dev/null
+	$WPACLI add_network $NET_NUM &> /dev/null
+	$WPACLI set_network $NET_NUM ssid "\"$SSID\"" &> /dev/null					
+	if [ X"$Type" == X"open" ];then
+        	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null 
+        elif [ X"$Type" == X"wep" ];then
+        	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null
+                ishex $Password
+		if [ X"$?" == X"0" ] ;then
+			case "$LEN" in
+				10|26|32|58)
+					$WPACLI set_network $NET_NUM wep_key0 "$Password" &> /dev/null
+	        			;;
+				*)
+					$WPACLI set_network $NET_NUM wep_key0 "\"$Password\"" &> /dev/null
+        				;;
+			esac
+		else
+	        	$WPACLI set_network $NET_NUM wep_key0 "\"$Password\"" &> /dev/null
+        	fi
+	elif [ X"$Type" == X"wpa" ] || [ X"$Type" == X"wpa2" ];then
+        	$WPACLI set_network $NET_NUM key_mgmt WPA-PSK &> /dev/null
+	        $WPACLI set_network $NET_NUM proto "WPA WPA2 RSN" &> /dev/null
+        	$WPACLI set_network $NET_NUM pairwise "TKIP CCMP" &> /dev/null
+		$WPACLI set_network $NET_NUM group "TKIP CCMP" &> /dev/null
+	       	ishex $Password
+                if [ X"$?" == X"0" ] ;then
+			case "$LEN" in
+				64)
+					$WPACLI set_network $NET_NUM psk "$Password" &> /dev/null
+					;;
+				*)
+					$WPACLI set_network $NET_NUM psk "\"$Password\"" &> /dev/null
+        				;;
+			esac
+		else
+			$WPACLI set_network $NET_NUM psk "\"$Password\"" &> /dev/null
+		fi
+	fi		
+        $WPACLI save_config &> /dev/null
+        $WPACLI reconfigure &> /dev/null
+	
+	return $NET_NUM
+}
+
+
+
+#Wifi start function.
+wifi_start () {
+	case "$#" in
+		0)
+			wifi_check
+	                wifi_dhclient
+			;;
+		1)
+			local IS_NUM=0
+			isnum $1
+			IS_NUM=$?
+			if [ X"$IS_NUM" == X"1" ]; then
+				wifi_check
+		       		sleep 3
+			        wifi_select $1
+			else
+				wifi_usage
+			fi
+			;;
+		2)
+			for args in $@
+	                do
+                        	if [ "$(echo $args | grep "Type=")" ]; then
+                	                type_detect="${args##*Type=}"
+        	                fi
+	                done
+                	if [ X"$type_detect" == X"open" ]; then
+        	                wifi_check
+	                        wifi_setting $1 $2
+                        	NET_NUM=$?
+                	        wifi_select $NET_NUM
+        	        else
+	                        wifi_usage
+                        	exit 1
+                	fi
+			;;
+		3)
+			wifi_check
+                	wifi_setting $1 $2 $3
+        	        NET_NUM=$?
+	                wifi_select $NET_NUM
+			;;
+		*)
+			wifi_usage
+			;;
+	esac
+}
+
+#Stop the connection and close wifi_mgmt
+wifi_stop() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+		$WPACLI list_networks > ${CONF_DIR}/wifi_mgmt_list$ORDER
+		sed -i 's/CURRENT/LAST USED/' ${CONF_DIR}/wifi_mgmt_list$ORDER	
+        	dhclient -r $INTERFACE
+		PID=$(cat /var/run/wpa_supplicant$ORDER.pid)
+                kill -INT $PID
+                rm -rf /var/run/wpa_supplicant$ORDER.pid
+                echo "wifi_mgmt is closed!!"
+	else
+                echo "wifi_mgmt is not opened!!"
+        fi	
+}
+
+#Scan all of the AP information
+wifi_scan() {
+	if [ X"$1" == X"-d" ]; then
+		if ! ifconfig | grep $INTERFACE > /dev/null ; then
+			ifconfig $INTERFACE up	
+			sleep 5
+		fi
+		iwlist $INTERFACE scan | grep -v Unknown  
+	elif [ X"$1" == X"" ]; then
+		if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+        	        $WPACLI scan > /dev/null
+			sleep 3
+			$WPACLI scan_result
+        	else
+			wifi_check > /dev/null
+			sleep 3 
+			$WPACLI scan > /dev/null
+                	sleep 3
+	                $WPACLI scan_result
+			echo ""
+			wifi_stop > /dev/null
+		fi
+	else
+		wifi_usage	
+	fi
+}
+
+#Show the AP's signal
+wifi_signal() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+		local SIGNAL_LEVEL=$(iwconfig $INTERFACE | grep Signal)
+		echo $SIGNAL_LEVEL
+		local SIGNAL=$(echo $SIGNAL_LEVEL | awk '{print $4}' | cut -d '=' -f 2)
+		isnum $SIGNAL
+		if [[ X"$?" == X"1" ]]; then
+			echo -n "Signal Strength : "
+			if [[ $SIGNAL -gt "-50" ]]; then
+				echo "Excellent"
+			elif [[ $SIGNAL -gt -65 ]]; then
+				echo "Good"
+			elif [[ $SIGNAL -gt "-80" ]]; then
+				echo "Fair"
+			elif [[ $SIGNAL -gt "-95" ]]; then
+				echo "Weak"
+			else
+				echo "Very Weak"
+			fi
+			return 0
+		else
+			echo "Sorry, there is no signal information."	
+			return 1
+		fi
+        else		
+                echo "wifi_mgmt is not opened!!"
+        	echo "Please start it first."
+		return 1
+	fi
+}
+
+#Show the managed AP list
+wifi_list() {
+        if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+        	$WPACLI list_networks
+	else
+		if [ -f ${CONF_DIR}/wifi_mgmt_list$ORDER ]; then
+			cat ${CONF_DIR}/wifi_mgmt_list$ORDER	
+        	else
+			echo "There is no managed ap list."
+		fi
+	fi
+}
+
+#Insert an AP information to the managed list
+wifi_insert_managed_ap() {	
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+		case "$#" in
+			3)
+				wifi_setting $1 $2 $3
+				exit 1
+				;;
+			2)
+				for args in $@
+	                        do
+                        	        if [ "$(echo $args | grep "Type=")" ]; then
+                	                        type_detect="${args##*Type=}"
+        	                        fi
+	                        done
+                        	if [ X"$type_detect" == X"open" ]; then
+                	                wifi_setting $1 $2
+        	                else
+	                                wifi_usage
+                                	exit 1
+                        	fi
+				;;
+			*)
+				wifi_usage
+				;;
+		esac
+        else
+                echo "wifi_mgmt is not opened!!"
+        	echo "Please start it first."
+        fi
+}
+
+#Select an AP number which is in the managed list
+wifi_select() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+  		if wifi_list | awk '{print $1}' | grep $1 >/dev/null ; then
+		      	dhclient -r $INTERFACE
+		        $WPACLI disconnect &> /dev/null
+        		$WPACLI enable_network $1 &> /dev/null
+		        $WPACLI select_network $1 &> /dev/null
+        		$WPACLI save_config &> /dev/null
+	        	$WPACLI reconfigure &> /dev/null
+	        	wifi_dhclient
+		else
+			echo "There is no number $1 AP information in managed AP list."
+		fi
+	else
+                echo "wifi_mgmt is not opened!!"
+                echo "Please use 'wifi_mgmt start [network id]' to start connection."
+        fi
+}
+
+#Delete an AP information from managed ap list
+wifi_delete() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+	   	echo -e "***** WARNING *****"
+        	echo -n "Are you sure that you want to delete network id $1 "
+	        echo -n "(y/n)"
+        	read choose
+	        if [ x"$choose" == x"y" ]; then
+        	        $WPACLI remove_network $1 &> /dev/null
+                	$WPACLI save_config &> /dev/null
+	                $WPACLI reconfigure &> /dev/null
+        	fi
+		$WPACLI list_networks 
+	else
+		wifi_check
+	   	echo -e "***** WARNING *****"
+        	echo -n "Are you sure that you want to delete network id $1 "
+	        echo -n "(y/n)"
+        	read choose
+	        if [ x"$choose" == x"y" ]; then
+        	        $WPACLI remove_network $1 &> /dev/null
+                	$WPACLI save_config &> /dev/null
+	                $WPACLI reconfigure &> /dev/null
+        	fi
+		$WPACLI list_networks 
+        	wifi_stop &> /dev/null
+	fi
+}
+
+#Show the ap information
+wifi_status() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+        	$WPACLI status
+	else
+                echo "wifi_mgmt is not opened!!"
+                echo "Please start it first."
+        fi
+}
+
+#Show the current interface or set interface
+wifi_interface() {
+	local set_interface=""
+	local i=""
+	local confirm=0	
+
+	for (( i=0; i<=10; i++ ))
+	do
+		if [ "X"$1 == X"$i" ]; then
+			if ip link | grep wlan$i > /dev/null ; then 
+				echo "wlan$i" > ${CONF_FILE}
+				confirm=1
+				echo "Now is setting the interface as wlan$1."
+			else
+				echo "There is no wlan$i interface."
+			fi
+		fi
+	done
+
+	if [ ! X"$confirm" == X"1" ]; then
+		local NUM_OF_INTERFACE=$(ip link | awk /wlan/{'print $2'} | wc -l)
+		echo "There is(are) $NUM_OF_INTERFACE interface(s):"
+		for (( i=0; i<$NUM_OF_INTERFACE; i++ ))
+		do
+			local INTERFACE_NAME=$(ip link | awk /wlan/{'print $2'} | head -n$(( $i + 1 )) | tail -n1) 
+			echo "${INTERFACE_NAME//:/} $([ x"${INTERFACE_NAME//:/}" == x"$INTERFACE" ] && echo '   [Current]')"
+		done
+	fi
+}
+
+#reconnect to the access point
+wifi_reconnect() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+        	dhclient -r $INTERFACE
+	        $WPACLI disconnect &> /dev/null
+        	$WPACLI reconnect &> /dev/null
+	        wifi_dhclient
+	else
+                echo "wifi_mgmt is not opened!!"
+                echo "Please start it first."
+        fi
+}
+
+#Close wifi_mgmt and then start it again.
+wifi_restart() {
+	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
+                wifi_stop
+		sleep 3	
+		wifi_start
+        else
+                echo "wifi_mgmt is not opened!!"
+                echo "Please start it first."
+        fi
+}
+
+#Show wifi_mgmt version
+wifi_version() {
+	echo "wifi_mgmt version $VERSION"
+}
+
+case "$1" in
+        start)
+                wifi_start $2 $3 $4
+                ;;
+        stop)
+                wifi_stop
+                ;;
+        scan)
+                wifi_scan $2
+                ;;
+        list)
+		wifi_list
+		;;
+	insert)
+		wifi_insert_managed_ap $2 $3 $4
+		;;
+	select)
+		IS_NUM=0
+                isnum $2
+                IS_NUM=$?
+                if [ X"$IS_NUM" == "X1" ]; then
+                        wifi_select $2
+                else
+                	wifi_usage
+		fi			
+		;;
+	delete)
+		wifi_delete $2
+		;;
+	status)
+                wifi_status
+                ;;
+	signal)
+		wifi_signal
+		exit $?
+		;;
+	interface)
+		wifi_interface $2
+		;;
+	reconnect)
+		wifi_reconnect
+		;;
+	restart)
+		wifi_restart
+		;;
+	version)
+        	wifi_version
+        	;;
+    	help)
+                wifi_usage
+                ;;
+        *)
+                wifi_usage
+                exit 3
+                ;;
+esac
+ 

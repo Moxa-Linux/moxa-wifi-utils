@@ -1,0 +1,12 @@
+Source: moxa-wifi-utils
+Section: net
+Priority: optional
+Maintainer: Aeluin Chen <aeluin.chen@moxa.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.5
+Homepage: http://www.moxa.com/
+
+Package: moxa-wifi-utils
+Architecture: all
+Depends: ${misc:Depends}, wpasupplicant
+Description: Wifi related utility on Moxa computer.
