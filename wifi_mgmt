@@ -19,7 +19,9 @@ VERSION="1.1.0"
 BUILDDATE="16072218"
 
 CONF_DIR=/etc/moxa-wifi-utils
+CONF_DIR=/home/moxa/${PKG}/etc/moxa-wifi-utils
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
+IW_SCAN_AWK=${CONF_DIR}/iw-scan.awk
 
 # Set interface
 if [ -f ${CONF_FILE} ] && cat ${CONF_FILE} | grep wlan* > /dev/null  ;then
@@ -383,29 +385,10 @@ wifi_stop() {
 
 #Scan all of the AP information
 wifi_scan() {
-	if [ X"$1" == X"-d" ]; then
-		if ! ifconfig | grep $INTERFACE > /dev/null ; then
-			ifconfig $INTERFACE up	
-			sleep 5
-		fi
-		iwlist $INTERFACE scan | grep -v Unknown  
-	elif [ X"$1" == X"" ]; then
-		if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
-        	        $WPACLI scan > /dev/null
-			sleep 3
-			$WPACLI scan_result
-        	else
-			wifi_check > /dev/null
-			sleep 3 
-			$WPACLI scan > /dev/null
-                	sleep 3
-	                $WPACLI scan_result
-			echo ""
-			wifi_stop > /dev/null
-		fi
-	else
-		wifi_usage	
-	fi
+	ip link set ${INTERFACE} up
+	sleep 1
+	echo -e "MAC               SSID\t\tFreq.\tSignal\tENCRYPTION\tEAP"
+	iw ${INTERFACE} scan | awk -f ${IW_SCAN_AWK} | sort -k 2,2
 }
 
 #Show the AP's signal

@@ -8,5 +8,5 @@ Homepage: http://www.moxa.com/
 
 Package: moxa-wifi-utils
 Architecture: all
-Depends: ${misc:Depends}, wpasupplicant
+Depends: ${misc:Depends}, wpasupplicant, iw, gawk
 Description: Wifi related utility on Moxa computer.

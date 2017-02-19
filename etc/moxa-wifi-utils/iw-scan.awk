@@ -1,0 +1,41 @@
+BEGIN {
+    i = 0
+}
+/^BSS / {
+    MAC = substr($2,1,length($2)-3)
+    i++
+    wifi[i]["mac"] = MAC
+    wifi[i]["enc"] = "Open"
+    wifi[i]["eap"] = "N"
+}
+$1 == "SSID:" {
+    wifi[i]["SSID"] = $2
+}
+$1 == "freq:" {
+    wifi[i]["freq"] = $NF
+}
+$1 == "signal:" {
+    wifi[i]["sig"] = $2 " " $3
+}
+$1 == "WPA:" {
+    wifi[i]["enc"] = "WPA"
+}
+$1 == "RSN:" {
+    if (wifi[i]["enc"] == "WPA")
+        wifi[i]["enc"] = "WPA/WPA2";
+    else
+        wifi[i]["enc"] = "WPA2";
+}
+$5 == "802.1X" {
+    wifi[i]["eap"] = "Y"
+}
+$1 == "WEP:" {
+    wifi[i]["enc"] = "WEP"
+}
+END {
+    #printf "%-17s %s\t%s\t%s\t%s\t%s\n","MAC","SSID","Frequency","Signal","Encryption","EAP"
+
+    for (w in wifi) {
+        printf "%17s %s\t%s\t%s\t%s\t%s\n",wifi[w]["mac"],wifi[w]["SSID"],wifi[w]["freq"],wifi[w]["sig"],wifi[w]["enc"],wifi[w]["eap"]
+    }
+}
