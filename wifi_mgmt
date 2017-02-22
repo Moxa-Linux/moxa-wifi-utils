@@ -393,34 +393,37 @@ wifi_scan() {
 
 #Show the AP's signal
 wifi_signal() {
-	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
-		local SIGNAL_LEVEL=$(iwconfig $INTERFACE | grep Signal)
-		echo $SIGNAL_LEVEL
-		local SIGNAL=$(echo $SIGNAL_LEVEL | awk '{print $4}' | cut -d '=' -f 2)
-		isnum $SIGNAL
-		if [[ X"$?" == X"1" ]]; then
-			echo -n "Signal Strength : "
-			if [[ $SIGNAL -gt "-50" ]]; then
-				echo "Excellent"
-			elif [[ $SIGNAL -gt -65 ]]; then
-				echo "Good"
-			elif [[ $SIGNAL -gt "-80" ]]; then
-				echo "Fair"
-			elif [[ $SIGNAL -gt "-95" ]]; then
-				echo "Weak"
-			else
-				echo "Very Weak"
-			fi
-			return 0
-		else
-			echo "Sorry, there is no signal information."	
-			return 1
-		fi
-        else		
-                echo "wifi_mgmt is not opened!!"
-        	echo "Please start it first."
-		return 1
+	local status=""
+	local signal=""
+	local info=$(iw ${INTERFACE} info | grep type)
+	if [ x"${info}" == x"" ]; then
+		echo "${INTERFACE} disconnected"
+		return 0
 	fi
+
+	# WiFi AP
+	status=$(echo "${info}" | cut -d' ' -f 2)
+	if [ "${status}" == "AP" ] || [ "${status}" == "ap" ]; then
+		echo "N/A (WiFi AP mode)"
+		return 0
+	fi
+
+	# WiFi Client
+	# Excellent: > -50
+	# Good: > -65
+	# Fair: > -80
+	# Weak: > -95
+	# Very Weak: < -95
+	info=$(iw ${INTERFACE} link)
+	status="$(echo "${info}" | head -n 1 | awk '{print $1" "$2}')"
+	if [ "${status}" == "Connected to" ]; then
+		#echo "connected"
+		signal="$(echo "${info}" | grep "signal:" | cut -d' ' -f 2-)"
+		echo "${signal}"
+	elif [ "${status}" == "Not connected." ]; then
+		echo "N/A (disconnected)"
+	fi
+	return 0
 }
 
 #Show the managed AP list
