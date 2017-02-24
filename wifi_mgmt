@@ -30,6 +30,7 @@ else
 	INTERFACE="wlan0"
 	echo wlan0 > ${CONF_FILE}
 fi
+SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
 
 WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
 WPACLI="wpa_cli -i ${INTERFACE}"
@@ -577,6 +578,10 @@ wifi_reconnect() {
         fi
 }
 
+wifi_slot() {
+	echo ${SLOT}
+}
+
 #Close wifi_mgmt and then start it again.
 wifi_restart() {
 	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
@@ -594,25 +599,47 @@ wifi_version() {
 	echo "wifi_mgmt version $VERSION"
 }
 
-case "$1" in
+
+# Start point
+while getopts  "i:s:" flag; do
+	if [ "${flag}" == "i" ]; then
+		if [ "${INTERFACE}" != "$OPTARG" ]; then
+			INTERFACE=$OPTARG
+			SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
+		fi
+	elif [ "${flag}" == "s" ]; then
+		SLOT=$OPTARG
+	fi
+done
+
+for i in $(seq $OPTIND 1 $#); do
+	eval "var=\$$i"
+	j=$(($j + 1))
+	eval "arg$j=\$$i"
+done
+
+case "$arg1" in
+	slot)
+		wifi_slot
+		;;
         start)
-                wifi_start $2 $3 $4
+                wifi_start $arg2 $arg3 $arg4
                 ;;
         stop)
                 wifi_stop
                 ;;
         scan)
-                wifi_scan $2
+                wifi_scan $arg2
                 ;;
         list)
 		wifi_list
 		;;
 	insert)
-		wifi_insert_managed_ap $2 $3 $4
+		wifi_insert_managed_ap $arg2 $arg3 $arg4
 		;;
 	select)
 		IS_NUM=0
-                isnum $2
+                isnum $arg2
                 IS_NUM=$?
                 if [ X"$IS_NUM" == "X1" ]; then
                         wifi_select $2
@@ -621,7 +648,7 @@ case "$1" in
 		fi			
 		;;
 	delete)
-		wifi_delete $2
+		wifi_delete $arg2
 		;;
 	status)
                 wifi_status
@@ -634,7 +661,7 @@ case "$1" in
 		wifi_interfaces
 		;;
 	interface)
-		wifi_interface $2
+		wifi_interface $arg2
 		;;
 	reconnect)
 		wifi_reconnect
