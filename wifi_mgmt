@@ -375,9 +375,9 @@ wifi_stop() {
 		PID=$(cat /var/run/wpa_supplicant$ORDER.pid)
                 kill -INT $PID
                 rm -rf /var/run/wpa_supplicant$ORDER.pid
-                echo "wifi_mgmt is closed!!"
+                echo "Stopped."
 	else
-                echo "wifi_mgmt is not opened!!"
+                echo "Stopped."
         fi	
 }
 
@@ -464,7 +464,7 @@ wifi_insert_managed_ap() {
 				;;
 		esac
         else
-                echo "wifi_mgmt is not opened!!"
+                echo "Stopped."
         	echo "Please start it first."
         fi
 }
@@ -484,7 +484,7 @@ wifi_select() {
 			echo "There is no number $1 AP information in managed AP list."
 		fi
 	else
-                echo "wifi_mgmt is not opened!!"
+                echo "Stopped."
                 echo "Please use 'wifi_mgmt start [network id]' to start connection."
         fi
 }
@@ -523,8 +523,7 @@ wifi_status() {
 	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
         	$WPACLI status
 	else
-                echo "wifi_mgmt is not opened!!"
-                echo "Please start it first."
+                echo "Stopped."
         fi
 }
 
@@ -570,7 +569,7 @@ wifi_reconnect() {
         	$WPACLI reconnect &> /dev/null
 	        wifi_dhclient
 	else
-                echo "wifi_mgmt is not opened!!"
+                echo "Stopped."
                 echo "Please start it first."
         fi
 }
@@ -586,7 +585,7 @@ wifi_restart() {
 		sleep 3	
 		wifi_start
         else
-                echo "wifi_mgmt is not opened!!"
+                echo "Stopped."
                 echo "Please start it first."
         fi
 }
