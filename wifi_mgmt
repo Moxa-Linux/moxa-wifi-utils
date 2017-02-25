@@ -18,8 +18,8 @@ PKG="moxa-wifi-utils"
 VERSION="1.1.0"
 BUILDDATE="16072218"
 
-CONF_DIR=/etc/moxa-wifi-utils
-CONF_DIR=/home/moxa/${PKG}/etc/moxa-wifi-utils
+CONF_DIR=/etc/${PKG}
+#CONF_DIR=/home/moxa/${PKG}/etc/moxa-wifi-utils
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
 IW_SCAN_AWK=${CONF_DIR}/iw-scan.awk
 
