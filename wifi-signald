@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 INTERVAL=10
 WIFI_MGMT=wifi_mgmt
@@ -72,7 +72,7 @@ usage() {
 
 
 while getopts  "i:vh" flag; do
-	if [ "${flag}" = "i" ]; then
+	if [ "${flag}" == "i" ]; then
 		re='^[0-9]+$'
 		if ! [[ $OPTARG =~ $re ]] ; then
 			   echo "error: Interval should be a number" >&2
@@ -80,10 +80,10 @@ while getopts  "i:vh" flag; do
 			   exit 1
 		fi
 		INTERVAL=$OPTARG
-	elif [ "${flag}" = "h" ]; then
+	elif [ "${flag}" == "h" ]; then
 		usage $0
 		exit 0
-	elif [ "${flag}" = "v" ]; then
+	elif [ "${flag}" == "v" ]; then
 		${WIFI_MGMT} version
 		exit 0
 	fi
