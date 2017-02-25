@@ -9,4 +9,9 @@ Homepage: http://www.moxa.com/
 Package: moxa-wifi-utils
 Architecture: all
 Depends: ${misc:Depends}, wpasupplicant, iw, gawk
-Description: Wifi related utility on Moxa computer.
+Description: WiFi interface utility on Moxa computer.
+
+Package: moxa-wifi-signald
+Architecture: all
+Depends: ${misc:Depends}, moxa-wifi-utils (>= 1.2.0)
+Description: Light signal LED for WiFi interface on Moxa computer.
