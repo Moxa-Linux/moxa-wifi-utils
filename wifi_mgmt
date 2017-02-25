@@ -15,8 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.1.0"
-BUILDDATE="16072218"
+VERSION="1.2.0"
 
 CONF_DIR=/etc/${PKG}
 #CONF_DIR=/home/moxa/${PKG}/etc/moxa-wifi-utils
@@ -592,7 +591,7 @@ wifi_restart() {
 
 #Show wifi_mgmt version
 wifi_version() {
-	echo "wifi_mgmt version $VERSION"
+	echo "${PKG} $VERSION"
 }
 
 
