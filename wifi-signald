@@ -6,7 +6,7 @@ LED_CTRL=mx_led_control
 
 _signal_led_flush() {
 	slot=$1
-	echo "${LED_CTRL} signal off ${slot} 1"
+	#echo "${LED_CTRL} signal off ${slot} 1"
 	${LED_CTRL} signal off ${slot} 1 &> /dev/null
 	${LED_CTRL} signal off ${slot} 2 &> /dev/null
 	${LED_CTRL} signal off ${slot} 3 &> /dev/null
@@ -25,22 +25,22 @@ _signal_led() {
 
 	signal=$(echo "$signal" | awk 'END {print $(NF-1)}')
 	if [ $signal -ge -30 ]; then
-		echo "Excellent"
+		#echo "Excellent"
 		${LED_CTRL} signal on ${slot} 1 &> /dev/null
 		${LED_CTRL} signal on ${slot} 2 &> /dev/null
 		${LED_CTRL} signal on ${slot} 3 &> /dev/null
 	elif [ $signal -ge -70 ]; then
-		echo "Fair"
+		#echo "Fair"
 		${LED_CTRL} signal on ${slot} 1 &> /dev/null
 		${LED_CTRL} signal on ${slot} 2 &> /dev/null
 		${LED_CTRL} signal off ${slot} 3 &> /dev/null
 	elif [ $signal -ge -80 ]; then
-		echo "Poor"
+		#echo "Poor"
 		${LED_CTRL} signal on ${slot} 1 &> /dev/null
 		${LED_CTRL} signal off ${slot} 2 &> /dev/null
 		${LED_CTRL} signal off ${slot} 3 &> /dev/null
 	else
-		echo "No signal"
+		#echo "No signal"
 		_signal_led_flush ${slot}
 	fi
 }
