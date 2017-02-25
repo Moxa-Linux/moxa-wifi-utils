@@ -122,9 +122,6 @@ wifi_usage () {
         echo -e "       start"
         echo -e "               Connect to the last time AP that was used."
         #scan
-        echo -e "       scan -d"
-        echo -e "               Scan all the access points information and show the detail message."
-        #scan
         echo -e "       scan"
         echo -e "               Scan all the access points information."
         #signal
@@ -629,7 +626,7 @@ case "$arg1" in
                 wifi_stop
                 ;;
         scan)
-                wifi_scan $arg2
+                wifi_scan
                 ;;
         list)
 		wifi_list
