@@ -9,13 +9,13 @@ BEGIN {
     wifi[i]["eap"] = "N"
 }
 $1 == "SSID:" {
-    wifi[i]["SSID"] = $2
+    wifi[i]["ssid"] = substr($0, index($0,$2))
 }
 $1 == "freq:" {
     wifi[i]["freq"] = $NF
 }
 $1 == "signal:" {
-    wifi[i]["sig"] = $2 " " $3
+    wifi[i]["sig"] = substr($2,1,length($2)-3)
 }
 $1 == "WPA:" {
     wifi[i]["enc"] = "WPA"
@@ -36,6 +36,6 @@ END {
     #printf "%-17s %s\t%s\t%s\t%s\t%s\n","MAC","SSID","Frequency","Signal","Encryption","EAP"
 
     for (w in wifi) {
-        printf "%17s %s\t%s\t%s\t%s\t%s\n",wifi[w]["mac"],wifi[w]["SSID"],wifi[w]["freq"],wifi[w]["sig"],wifi[w]["enc"],wifi[w]["eap"]
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n",wifi[w]["mac"],wifi[w]["freq"],wifi[w]["sig"],wifi[w]["enc"],wifi[w]["eap"],wifi[w]["ssid"]
     }
 }
