@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.3.1"
+VERSION="1.3.2"
 
 CONF_DIR=/etc/${PKG}
 #CONF_DIR=/home/moxa/${PKG}/etc/moxa-wifi-utils
@@ -30,7 +30,7 @@ else
 	INTERFACE="wlan0"
 	echo wlan0 > ${CONF_FILE}
 fi
-SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
+SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+4))
 
 WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
 WPACLI="wpa_cli -i ${INTERFACE}"
@@ -50,14 +50,14 @@ else
 				if [ X"$COUNT" == X"0" ]; then
 					ORDER=""
 					WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
-				else				
+				else
 					ORDER=$COUNT
 					WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant$ORDER.conf"
 				fi
 			fi
 			COUNT=$(( $COUNT + 1 ))
 		fi
-	done	
+	done
 fi
 
 #If there is no conf file, create a conf file
@@ -96,7 +96,7 @@ isnum () {
 		if [ X"$1" == X"$i" ]; then
 			IS_NUM=1;
 			break
-		fi 
+		fi
 	done
 	return $IS_NUM
 }
@@ -186,7 +186,7 @@ wifi_dhclient() {
 		$WPACLI status | grep wpa_state
                 if $WPACLI status | grep COMPLETED > /dev/null ; then
 			sleep 3
-			if $WPACLI status | grep COMPLETED > /dev/null ; then	
+			if $WPACLI status | grep COMPLETED > /dev/null ; then
 				break;
 			fi
                 fi
@@ -231,7 +231,7 @@ wifi_check() {
         else
        		set_wpa
         	${WPA_SUPPLICANT} -c$WPA_CONF_FILE -P/var/run/wpa_supplicant$ORDER.pid -Dnl80211 -B >/dev/null 2>&1
-	fi	
+	fi
 }
 
 #Set AP information
@@ -255,7 +255,7 @@ wifi_setting() {
 			wifi_stop
 			exit 1
                 fi
-        done		
+        done
 
 	check_list=`wifi_mgmt list | awk '{print $2}' | grep $SSID`
 	if [ X"$check_list" != X"" ] && [ X"${#check_list}" == X"${#SSID}" ]; then
@@ -268,14 +268,14 @@ wifi_setting() {
 		wifi_stop &> /dev/null
 		exit 1
 	fi
-	
+
 	LEN=${#Password}
-	
+
 	$WPACLI remove_network $NET_NUM &> /dev/null
 	$WPACLI add_network $NET_NUM &> /dev/null
-	$WPACLI set_network $NET_NUM ssid "\"$SSID\"" &> /dev/null					
+	$WPACLI set_network $NET_NUM ssid "\"$SSID\"" &> /dev/null
 	if [ X"$Type" == X"open" ];then
-        	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null 
+        	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null
         elif [ X"$Type" == X"wep" ];then
         	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null
                 ishex $Password
@@ -309,10 +309,10 @@ wifi_setting() {
 		else
 			$WPACLI set_network $NET_NUM psk "\"$Password\"" &> /dev/null
 		fi
-	fi		
+	fi
         $WPACLI save_config &> /dev/null
         $WPACLI reconfigure &> /dev/null
-	
+
 	return $NET_NUM
 }
 
@@ -370,7 +370,7 @@ wifi_start () {
 wifi_stop() {
 	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
 		$WPACLI list_networks > ${CONF_DIR}/wifi_mgmt_list$ORDER
-		sed -i 's/CURRENT/LAST USED/' ${CONF_DIR}/wifi_mgmt_list$ORDER	
+		sed -i 's/CURRENT/LAST USED/' ${CONF_DIR}/wifi_mgmt_list$ORDER
         	dhclient -r $INTERFACE
 		PID=$(cat /var/run/wpa_supplicant$ORDER.pid)
                 kill -INT $PID
@@ -378,7 +378,7 @@ wifi_stop() {
                 echo "Stopped."
 	else
                 echo "Stopped."
-        fi	
+        fi
 }
 
 #Scan all of the AP information
@@ -439,7 +439,7 @@ wifi_list() {
         	$WPACLI list_networks
 	else
 		if [ -f ${CONF_DIR}/wifi_mgmt_list$ORDER ]; then
-			cat ${CONF_DIR}/wifi_mgmt_list$ORDER	
+			cat ${CONF_DIR}/wifi_mgmt_list$ORDER
         	else
 			echo "There is no managed ap list."
 		fi
@@ -447,7 +447,7 @@ wifi_list() {
 }
 
 #Insert an AP information to the managed list
-wifi_insert_managed_ap() {	
+wifi_insert_managed_ap() {
 	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
 		case "$#" in
 			3)
@@ -510,7 +510,7 @@ wifi_delete() {
                 	$WPACLI save_config &> /dev/null
 	                $WPACLI reconfigure &> /dev/null
         	fi
-		$WPACLI list_networks 
+		$WPACLI list_networks
 	else
 		wifi_check
 	   	echo -e "***** WARNING *****"
@@ -522,7 +522,7 @@ wifi_delete() {
                 	$WPACLI save_config &> /dev/null
 	                $WPACLI reconfigure &> /dev/null
         	fi
-		$WPACLI list_networks 
+		$WPACLI list_networks
         	wifi_stop &> /dev/null
 	fi
 }
@@ -544,12 +544,12 @@ wifi_interfaces() {
 wifi_interface() {
 	local set_interface=""
 	local i=""
-	local confirm=0	
+	local confirm=0
 
 	for (( i=0; i<=10; i++ ))
 	do
 		if [ "X"$1 == X"$i" ]; then
-			if ip link | grep wlan$i > /dev/null ; then 
+			if ip link | grep wlan$i > /dev/null ; then
 				echo "wlan$i" > ${CONF_FILE}
 				confirm=1
 				echo "Now is setting the interface as wlan$1."
@@ -564,7 +564,7 @@ wifi_interface() {
 		echo "There is(are) $NUM_OF_INTERFACE interface(s):"
 		for (( i=0; i<$NUM_OF_INTERFACE; i++ ))
 		do
-			local INTERFACE_NAME=$(ip link | awk /wlan/{'print $2'} | head -n$(( $i + 1 )) | tail -n1) 
+			local INTERFACE_NAME=$(ip link | awk /wlan/{'print $2'} | head -n$(( $i + 1 )) | tail -n1)
 			echo "${INTERFACE_NAME//:/} $([ x"${INTERFACE_NAME//:/}" == x"$INTERFACE" ] && echo '   [Current]')"
 		done
 	fi
@@ -591,7 +591,7 @@ wifi_slot() {
 wifi_restart() {
 	if [ -f /var/run/wpa_supplicant$ORDER.pid ]; then
                 wifi_stop
-		sleep 3	
+		sleep 3
 		wifi_start
         else
                 echo "Stopped."
@@ -650,7 +650,7 @@ case "$arg1" in
                         wifi_select $2
                 else
                 	wifi_usage
-		fi			
+		fi
 		;;
 	delete)
 		wifi_delete $arg2
@@ -685,4 +685,4 @@ case "$arg1" in
                 exit 3
                 ;;
 esac
- 
+
