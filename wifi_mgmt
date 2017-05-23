@@ -15,10 +15,9 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.3.2"
+VERSION="1.3.3"
 
 CONF_DIR=/etc/${PKG}
-#CONF_DIR=/home/moxa/${PKG}/etc/moxa-wifi-utils
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
 IW_SCAN_AWK=${CONF_DIR}/iw-scan.awk
 WPACLI_SCAN_AWK=${CONF_DIR}/wpacli-scan.awk
@@ -30,7 +29,10 @@ else
 	INTERFACE="wlan0"
 	echo wlan0 > ${CONF_FILE}
 fi
-SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+4))
+SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
+if [ -z "${SLOT}" ]; then
+	SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+4))
+fi
 
 WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
 WPACLI="wpa_cli -i ${INTERFACE}"
