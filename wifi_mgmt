@@ -29,9 +29,11 @@ else
 	INTERFACE="wlan0"
 	echo wlan0 > ${CONF_FILE}
 fi
-SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
+if [ ! -z $(which mx_module_control) ]; then
+	SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
+fi
 if [ -z "${SLOT}" ]; then
-	SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+4))
+	SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
 fi
 
 WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
