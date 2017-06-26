@@ -430,7 +430,7 @@ wifi_signal() {
 	if [ "${status}" == "Connected to" ]; then
 		#echo "connected"
 		signal="$(echo "${info}" | grep "signal:" | cut -d' ' -f 2-)"
-		echo "${signal}"
+		echo "${signal} or level=${signal}"
 	elif [ "${status}" == "Not connected." ]; then
 		echo "N/A (disconnected)"
 	fi

@@ -23,7 +23,7 @@ _signal_led() {
 		return
 	fi
 
-	signal=$(echo "$signal" | awk 'END {print $(NF-1)}')
+	signal=$(echo "$signal" | awk 'END {print $(NF-4)}')
 	if [ $signal -ge -30 ]; then
 		#echo "Excellent"
 		${LED_CTRL} signal on ${slot} 1 &> /dev/null
