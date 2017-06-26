@@ -614,7 +614,12 @@ while getopts  "i:s:" flag; do
 	if [ "${flag}" == "i" ]; then
 		if [ "${INTERFACE}" != "$OPTARG" ]; then
 			INTERFACE=$OPTARG
-			SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
+			if [ ! -z $(which mx_module_control) ]; then
+				SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
+			fi
+			if [ -z "${SLOT}" ]; then
+				SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
+			fi
 		fi
 	elif [ "${flag}" == "s" ]; then
 		SLOT=$OPTARG
