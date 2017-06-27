@@ -29,12 +29,22 @@ else
 	INTERFACE="wlan0"
 	echo wlan0 > ${CONF_FILE}
 fi
-if [ ! -z $(which mx_module_control) ]; then
-	SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
-fi
-if [ -z "${SLOT}" ]; then
-	SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
-fi
+_slot_from_interface () {
+	# usage:
+	#    _slot_from_interface ${INTERFACE}
+	# ex:
+	#    _slot_from_interface wlan0
+	local interface=$1
+	local slot
+	if [ ! -z $(which mx_module_control) ]; then
+		slot=$(mx_module_control list | grep ${interface} | sed 's/slot\[\([0-9]\)\].*/\1/')
+	fi
+	if [ -z "${slot}" ]; then
+		slot=$(($(echo ${interface} | sed -e 's/wlan//g')+1))
+	fi
+	SLOT=${slot}
+}
+_slot_from_interface ${INTERFACE}
 
 WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
 WPACLI="wpa_cli -i ${INTERFACE}"
@@ -614,12 +624,7 @@ while getopts  "i:s:" flag; do
 	if [ "${flag}" == "i" ]; then
 		if [ "${INTERFACE}" != "$OPTARG" ]; then
 			INTERFACE=$OPTARG
-			if [ ! -z $(which mx_module_control) ]; then
-				SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
-			fi
-			if [ -z "${SLOT}" ]; then
-				SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
-			fi
+			_slot_from_interface ${INTERFACE}
 		fi
 	elif [ "${flag}" == "s" ]; then
 		SLOT=$OPTARG
