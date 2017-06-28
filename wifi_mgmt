@@ -15,52 +15,129 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.3.3"
+VERSION="1.3.4"
 
 CONF_DIR=/etc/${PKG}
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
 IW_SCAN_AWK=${CONF_DIR}/iw-scan.awk
 WPACLI_SCAN_AWK=${CONF_DIR}/wpacli-scan.awk
 
-# Set interface
-if [ -f ${CONF_FILE} ] && cat ${CONF_FILE} | grep wlan* > /dev/null  ;then
-	INTERFACE=$(cat ${CONF_FILE})
-else
-	INTERFACE="wlan0"
-	echo wlan0 > ${CONF_FILE}
-fi
-SLOT=$(mx_module_control list | grep ${INTERFACE} | sed 's/slot\[\([0-9]\)\].*/\1/')
-if [ -z "${SLOT}" ]; then
-	SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+4))
-fi
+_init_interface () {
+	# update:
+	#    INTERFACE
+	# usage:
+	#    _init_interface ${CONF_FILE}
+	# ex:
+	#    _init_interface /etc/moxa-wifi-utils/wifi_mgmt.conf
+	local conf_file=$1
+	local interface
+	if [ -f ${conf_file} ] && cat ${conf_file} | grep wlan* > /dev/null  ;then
+		interface=$(cat ${conf_file})
+	else
+		interface="wlan0"
+		echo wlan0 > ${conf_file}
+	fi
+	INTERFACE=${interface}
+}
 
-WPA_SUPPLICANT="wpa_supplicant -i ${INTERFACE}"
-WPACLI="wpa_cli -i ${INTERFACE}"
-
-# Set some settings if there are many wifi interfaces
-NUM_OF_INTERFACE=$(ip link | awk /wlan/{'print $2'} | wc -l)
-
-ORDER=""
-if [ X"$NUM_OF_INTERFACE" == X"1" ]; then
-	WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
-else
-	COUNT=0
-	for (( i=0; i<10; i++ ))
-	do
-		if ip link | grep "wlan$i" > /dev/null ; then
-			if [ X"$INTERFACE" == Xwlan"$i" ]; then
-				if [ X"$COUNT" == X"0" ]; then
-					ORDER=""
-					WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
-				else
-					ORDER=$COUNT
-					WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant$ORDER.conf"
-				fi
-			fi
-			COUNT=$(( $COUNT + 1 ))
+_interface_from_slot () {
+	# update:
+	#    INTERFACE
+	# usage:
+	#    _interface_from_slot ${SLOT}
+	# ex:
+	#    _interface_from_slot 3
+	local slot=$1
+	local interface
+	if [ ! -z $(which mx_module_control) ]; then
+		interface=$(mx_module_control list | grep "slot\[${slot}\]" | grep "wlan" | awk 'END {print $NF}')
+		if [ -z ${interface} ]; then
+			echo "Error: Module not found."
+			exit 1
 		fi
-	done
-fi
+	fi
+	if [ -z ${interface} ]; then
+		interface="wlan$(( ${slot}-1 ))"
+	fi
+	INTERFACE=${interface}
+}
+
+_slot_from_interface () {
+	# update:
+	#    SLOT
+	# usage:
+	#    _slot_from_interface ${INTERFACE}
+	# ex:
+	#    _slot_from_interface wlan0
+	local interface=$1
+	local slot
+	if [ ! -z $(which mx_module_control) ]; then
+		slot=$(mx_module_control list | grep ${interface} | sed 's/slot\[\([0-9]\)\].*/\1/')
+		if [ -z ${slot} ]; then
+			echo "Error: Module not found."
+			exit 1
+		fi
+	fi
+	if [ -z "${slot}" ]; then
+		slot=$(($(echo ${interface} | sed -e 's/wlan//g')+1))
+	fi
+	SLOT=${slot}
+}
+
+_init_wpa_supplicant () {
+	# update:
+	#    WPA_SUPPLICANT
+	# usage:
+	#    _init_wpa_supplicant ${INTERFACE}
+	# ex:
+	#    _init_wpa_supplicant wlan0
+	local interface=$1
+	WPA_SUPPLICANT="wpa_supplicant -i ${interface}"
+}
+
+_init_wpacli () {
+	# update:
+	#    WPACLI
+	# usage:
+	#    _init_wpacli ${INTERFACE}
+	# ex:
+	#    _init_wpacli wlan0
+	local interface=$1
+	WPACLI="wpa_cli -i ${interface}"
+}
+
+_order_from_interface () {
+	# require:
+	#    CONF_DIR
+	# update:
+	#    ORDER, WPA_CONF_FILE
+	# usage:
+	#    _order_from_interface ${INTERFACE}
+	# ex:
+	#    _order_from_interface wlan0
+	ORDER=""
+	local NUM_OF_INTERFACE=$(ip link | awk /wlan/{'print $2'} | wc -l)
+	if [ X"${NUM_OF_INTERFACE}" == X"1" ]; then
+		WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
+	else
+		local count=0
+		for (( i=0; i<10; i++ ))
+		do
+			if ip link | grep "wlan$i" > /dev/null ; then
+				if [ X"${INTERFACE}" == Xwlan"$i" ]; then
+					if [ X"${count}" == X"0" ]; then
+						ORDER=""
+						WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant.conf"
+					else
+						ORDER=${count}
+						WPA_CONF_FILE="${CONF_DIR}/wpa_supplicant${ORDER}.conf"
+					fi
+				fi
+				count=$(( ${count} + 1 ))
+			fi
+		done
+	fi
+}
 
 #If there is no conf file, create a conf file
 set_wpa () {
@@ -106,8 +183,15 @@ isnum () {
 # show wifi_mgmt usage list
 wifi_usage () {
         echo -e "Usage:"
-        echo -e "      $0 [OPTIONS]\n"
+        echo -e "      $0 [-i <interface id>] [-s <slot id>] [OPTIONS]\n"
         echo -e "OPTIONS"
+        echo -e "       -i <interface id>"
+        echo -e "               Interface identifier."
+        echo -e "               example: wlan0"
+        echo -e "       -s <slot id>"
+        echo -e "               Slot identifier, start from 1 and default value depends "
+        echo -e "               on module interface."
+        echo -e "               example: wlan0 may in slot 3"
         #start
 	echo -e "       start Type=[type] SSID=[ssid] Password=[password]"
         echo -e "               Insert an AP information to the managed AP list and then connect to the AP."
@@ -428,7 +512,7 @@ wifi_signal() {
 	if [ "${status}" == "Connected to" ]; then
 		#echo "connected"
 		signal="$(echo "${info}" | grep "signal:" | cut -d' ' -f 2-)"
-		echo "${signal}"
+		echo "${signal} or level=${signal}"
 	elif [ "${status}" == "Not connected." ]; then
 		echo "N/A (disconnected)"
 	fi
@@ -608,16 +692,26 @@ wifi_version() {
 
 
 # Start point
+_init_interface ${CONF_FILE}
+_slot_from_interface ${INTERFACE}
+
 while getopts  "i:s:" flag; do
 	if [ "${flag}" == "i" ]; then
 		if [ "${INTERFACE}" != "$OPTARG" ]; then
 			INTERFACE=$OPTARG
-			SLOT=$(($(echo ${INTERFACE} | sed -e 's/wlan//g')+1))
+			_slot_from_interface ${INTERFACE}
 		fi
 	elif [ "${flag}" == "s" ]; then
-		SLOT=$OPTARG
+		if [ "${SLOT}" != "$OPTARG" ]; then
+			SLOT=$OPTARG
+			_interface_from_slot ${SLOT}
+		fi
 	fi
 done
+
+_init_wpa_supplicant ${INTERFACE}
+_init_wpacli ${INTERFACE}
+_order_from_interface ${INTERFACE}
 
 for i in $(seq $OPTIND 1 $#); do
 	eval "var=\$$i"
