@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.3.4"
+VERSION="1.3.5"
 
 CONF_DIR=/etc/${PKG}
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
@@ -359,6 +359,7 @@ wifi_setting() {
 
 	$WPACLI remove_network $NET_NUM &> /dev/null
 	$WPACLI add_network $NET_NUM &> /dev/null
+	$WPACLI set_network $NET_NUM scan_ssid 1 &> /dev/null
 	$WPACLI set_network $NET_NUM ssid "\"$SSID\"" &> /dev/null
 	if [ X"$Type" == X"open" ];then
         	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null

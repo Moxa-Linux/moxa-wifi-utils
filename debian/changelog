@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.3.5) unstable; urgency=low
+
+  * fix: add support for hidden SSID AP
+
+ -- Donald Hsu <donald.hsu@moxa.com>  Tue, 11 Jul 2017 20:07:01 +0800
+
 moxa-wifi-utils (1.3.4) unstable; urgency=low
 
   * fix: fix for platform not support mx_module_control command
