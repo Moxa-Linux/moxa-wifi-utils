@@ -359,6 +359,7 @@ wifi_setting() {
 
 	$WPACLI remove_network $NET_NUM &> /dev/null
 	$WPACLI add_network $NET_NUM &> /dev/null
+	$WPACLI set_network $NET_NUM scan_ssid 1 &> /dev/null
 	$WPACLI set_network $NET_NUM ssid "\"$SSID\"" &> /dev/null
 	if [ X"$Type" == X"open" ];then
         	$WPACLI set_network $NET_NUM key_mgmt NONE &> /dev/null
