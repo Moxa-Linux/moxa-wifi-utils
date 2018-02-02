@@ -40,7 +40,10 @@ BEGIN {
     if (where != 0) {
         wifi[i]["enc"] = "WEP"
     }
-    wifi[i]["ssid"] = substr($0, index($0,$5))
+    if (length($5) == 0)
+        wifi[i]["ssid"] = ""
+    else
+        wifi[i]["ssid"] = substr($0, index($0,$5))
     i++
 }
 END {

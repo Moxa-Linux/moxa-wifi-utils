@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.3.6) unstable; urgency=medium
+
+  * fix: fail to query empty SSID.
+
+ -- Aeluin Chen <aeluin.chen@moxa.com>  Fri, 02 Feb 2018 15:26:04 +0800
+
 moxa-wifi-utils (1.3.5) unstable; urgency=low
 
   * fix: add support for hidden SSID AP
