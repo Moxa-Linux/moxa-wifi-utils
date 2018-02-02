@@ -9,7 +9,7 @@ BEGIN {
     wifi[i]["eap"] = "N"
 }
 $1 == "SSID:" {
-    wifi[i]["ssid"] = substr($0, index($0,$2))
+    wifi[i]["ssid"] = substr($0,index($0,$1)+length($1)+1)
 }
 $1 == "freq:" {
     wifi[i]["freq"] = $NF
