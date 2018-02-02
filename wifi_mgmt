@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.3.5"
+VERSION="1.3.6"
 
 CONF_DIR=/etc/${PKG}
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
