@@ -15,12 +15,14 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.3.6"
+VERSION="1.4.0"
 
 CONF_DIR=/etc/${PKG}
+RUN_DIR=/var/run/${PKG}
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
 IW_SCAN_AWK=${CONF_DIR}/iw-scan.awk
 WPACLI_SCAN_AWK=${CONF_DIR}/wpacli-scan.awk
+
 
 _init_interface () {
 	# update:
@@ -208,8 +210,14 @@ wifi_usage () {
         echo -e "       start"
         echo -e "               Connect to the last time AP that was used."
         #scan
-        echo -e "       scan"
+        echo -e "       scan [nowait]"
         echo -e "               Scan all the access points information."
+        echo -e ""
+        echo -e "               nowait        do not wait the results, only works after WiFi started."
+        #scan_results
+        echo -e "       scan_results"
+        echo -e "               Shows all scanned access points information."
+        echo -e "               Trigger `wifi_mgmt scan` for real time information."
         #signal
         echo -e "       signal"
         echo -e "               Show the AP's signal."
@@ -470,18 +478,42 @@ wifi_stop() {
 
 #Scan all of the AP information
 wifi_scan() {
-	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
-	if ps wwax | grep "wpa_supplicant" | grep -q -v grep; then
+	local ifname=$(${WPACLI} ifname 2> /dev/null)
+	local networks=""
+
+	if [ "${ifname}" == "${INTERFACE}" ]; then
+		while ! $(${WPACLI} scan | grep -q "OK"); do
+			sleep 1
+		done
+
+		[ "$1" == "nowait" ] && return
+
 		while ! $(${WPACLI} scan | grep -q "OK"); do
 			sleep 1
 		done
 		sleep 3
-		${WPACLI} scan_results | awk 'NR>1' | \
-			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6
+		networks=$(${WPACLI} scan_results | awk 'NR>1' | \
+			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6)
 	else
 		ip link set ${INTERFACE} up
 		sleep 1
-		iw ${INTERFACE} scan | awk -f ${IW_SCAN_AWK} | sort -k 6,6
+		networks=$(iw ${INTERFACE} scan | awk -f ${IW_SCAN_AWK} | \
+			sort -k 6,6)
+		echo "${networks}" > "${RUN_DIR}/scan-results.${INTERFACE}"
+	fi
+	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
+	echo "${networks}"
+}
+
+wifi_scan_results() {
+	local ifname=$(${WPACLI} ifname 2> /dev/null)
+
+	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
+	if [ "${ifname}" == "${INTERFACE}" ]; then
+		${WPACLI} scan_results | awk 'NR>1' | \
+			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6
+	else
+		cat "${RUN_DIR}/scan-results.${INTERFACE}"
 	fi
 }
 
@@ -693,6 +725,7 @@ wifi_version() {
 
 
 # Start point
+mkdir -p "${RUN_DIR}"
 _init_interface ${CONF_FILE}
 _slot_from_interface ${INTERFACE}
 
@@ -731,7 +764,10 @@ case "$arg1" in
                 wifi_stop
                 ;;
         scan)
-                wifi_scan
+                wifi_scan $arg2
+                ;;
+        scan_results)
+                wifi_scan_results
                 ;;
         list)
 		wifi_list
