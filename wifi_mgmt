@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.4.0"
+VERSION="1.4.1"
 
 CONF_DIR=/etc/${PKG}
 RUN_DIR=/var/run/${PKG}
@@ -217,7 +217,7 @@ wifi_usage () {
         #scan_results
         echo -e "       scan_results"
         echo -e "               Shows all scanned access points information."
-        echo -e "               Trigger `wifi_mgmt scan` for real time information."
+        echo -e "               Trigger \`wifi_mgmt scan\` for real time information."
         #signal
         echo -e "       signal"
         echo -e "               Show the AP's signal."

@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.4.1) unstable; urgency=medium
+
+  * fix: `help` triggers `scan`.
+
+ -- Moxa <moxa@aeluin.chen-PC>  Mon, 02 Apr 2018 13:47:24 +0800
+
 moxa-wifi-utils (1.4.0) unstable; urgency=low
 
   * feat: support `nowait` scan and `scan_results`.
