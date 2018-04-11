@@ -1,3 +1,13 @@
+moxa-wifi-utils (1.5.0) unstable; urgency=medium
+
+  * fix: wifi-signald support read product config to signal led
+  * feat: add uc5100.conf on product.d
+  * feat: add uc8580-lx.conf on product.d
+  * feat: support uc3100 series signald
+  * fix: wifi-signald shall return when operation is not support
+
+ -- Elvis Yao (姚家瑋) <ElvisCW.Yao@moxa.com>  Tue, 03 Apr 2018 17:48:12 +0800
+
 moxa-wifi-utils (1.4.1) unstable; urgency=medium
 
   * fix: `help` triggers `scan`.
