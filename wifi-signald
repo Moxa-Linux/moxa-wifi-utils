@@ -2,14 +2,43 @@
 
 INTERVAL=10
 WIFI_MGMT=wifi_mgmt
-LED_CTRL=mx_led_control
+
+# profile
+CONF_DIR=/etc/moxa-wifi-utils
+PRODUCT_DIR=${CONF_DIR}/product.d
+
+KVERSION=$(which kversion)
+[ -z "${KVERSION}" ] && >&2 echo "Error: \`kversion\` not found." && exit 1
+
+PRODUCT="$(${KVERSION} 2> /dev/null | awk '{print $1}')"
+
+_init_config() {
+	for conf in $(ls ${PRODUCT_DIR}); do
+		if [ "${conf: -5}" == ".conf" ]; then
+			. ${PRODUCT_DIR}/$conf
+		fi
+	done
+
+	eval "_product_${PRODUCT}_profile" 2>/dev/null
+	if [ x"$?" != x"0" ]; then
+		>&2 echo "Error: \`kversion\` or profile not found."
+		_exit 1
+	fi
+}
 
 _signal_led_flush() {
 	slot=$1
-	#echo "${LED_CTRL} signal off ${slot} 1"
-	${LED_CTRL} signal off ${slot} 1 &> /dev/null
-	${LED_CTRL} signal off ${slot} 2 &> /dev/null
-	${LED_CTRL} signal off ${slot} 3 &> /dev/null
+	if [ -z "$SIGNAL_LED_FLUSH" ]; then
+		# Operation not support. Return.
+		return
+	fi
+	# Use product config signal led flush
+	signal_led_flush_funcs="$(echo "$SIGNAL_LED_FLUSH" | \
+				sed -e "s/\$SLOT/$slot/g")"
+	IFS=$'\n'
+	for i in $signal_led_flush_funcs; do
+		eval "$i"
+	done
 }
 
 _signal_led() {
@@ -26,23 +55,44 @@ _signal_led() {
 	signal=$(echo "$signal" | awk 'END {print $(NF-4)}')
 	if [ $signal -ge -30 ]; then
 		#echo "Excellent"
-		${LED_CTRL} signal on ${slot} 1 &> /dev/null
-		${LED_CTRL} signal on ${slot} 2 &> /dev/null
-		${LED_CTRL} signal on ${slot} 3 &> /dev/null
+		if [ -n "$SIGNAL_LED_EXCELLENT" ]; then
+			# Use product config to signal led.
+			signal_led_funcs="$(echo "$SIGNAL_LED_EXCELLENT" | \
+					sed -e "s/\$SLOT/$slot/g")"
+		else
+			# Operation not support. Return.
+			return
+		fi
 	elif [ $signal -ge -70 ]; then
 		#echo "Fair"
-		${LED_CTRL} signal on ${slot} 1 &> /dev/null
-		${LED_CTRL} signal on ${slot} 2 &> /dev/null
-		${LED_CTRL} signal off ${slot} 3 &> /dev/null
+		if [ -n "$SIGNAL_LED_FAIR" ]; then
+			# Use product config to signal led.
+			signal_led_funcs="$(echo "$SIGNAL_LED_FAIR" | \
+					sed -e "s/\$SLOT/$slot/g")"
+		else
+			# Operation not support. Return.
+			return
+		fi
 	elif [ $signal -ge -80 ]; then
 		#echo "Poor"
-		${LED_CTRL} signal on ${slot} 1 &> /dev/null
-		${LED_CTRL} signal off ${slot} 2 &> /dev/null
-		${LED_CTRL} signal off ${slot} 3 &> /dev/null
+		if [ -n "$SIGNAL_LED_POOR" ]; then
+			# Use product config to signal led.
+			signal_led_funcs="$(echo "$SIGNAL_LED_POOR" | \
+					sed -e "s/\$SLOT/$slot/g")"
+		else
+			# Operation not support. Return.
+			return
+		fi
 	else
 		#echo "No signal"
 		_signal_led_flush ${slot}
+		return
 	fi
+
+	IFS=$'\n'
+	for i in $signal_led_funcs; do
+		eval "$i"
+	done
 }
 
 _loop() {
@@ -89,4 +139,5 @@ while getopts  "i:vh" flag; do
 	fi
 done
 
+_init_config
 _loop
