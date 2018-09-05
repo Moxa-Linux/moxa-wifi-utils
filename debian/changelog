@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.6.0) unstable; urgency=low
+
+  * feat: add uc8540 signald configuration
+
+ -- Donald Hsu <donald.hsu@moxa.com>  Wed, 05 Sep 2018 17:06:49 +0800
+
 moxa-wifi-utils (1.5.2) unstable; urgency=medium
 
   * fix: add postinst to add 'addgroup wheel' that is indeed with wifi_mgmt
