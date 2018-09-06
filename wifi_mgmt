@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.5.2"
+VERSION="1.6.0"
 
 CONF_DIR=/etc/${PKG}
 RUN_DIR=/var/run/${PKG}
