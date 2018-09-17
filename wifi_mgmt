@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.6.0"
+VERSION="1.6.1"
 
 CONF_DIR=/etc/${PKG}
 RUN_DIR=/var/run/${PKG}
@@ -488,9 +488,6 @@ wifi_scan() {
 
 		[ "$1" == "nowait" ] && return
 
-		while ! $(${WPACLI} scan | grep -q "OK"); do
-			sleep 1
-		done
 		sleep 3
 		networks=$(${WPACLI} scan_results | awk 'NR>1' | \
 			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6)
