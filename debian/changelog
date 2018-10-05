@@ -1,3 +1,10 @@
+moxa-wifi-utils (1.6.2) unstable; urgency=low
+
+  * fix: smooth wifi scan process
+  * fix: add lock when using `iw` to scan
+
+ -- Aeluin Chen <aeluin.chen@moxa.com>  Fri, 05 Oct 2018 16:26:20 +0800
+
 moxa-wifi-utils (1.6.1) unstable; urgency=medium
 
   * fix: unnecessary scan after checking `nowait`
