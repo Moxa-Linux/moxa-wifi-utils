@@ -482,14 +482,19 @@ wifi_scan() {
 	local networks=""
 
 	if [ "${ifname}" == "${INTERFACE}" ]; then
-		while ! $(${WPACLI} scan | grep -q "OK"); do
-			sleep 1
+		for i in {1..30}; do
+			${WPACLI} scan 2>&1 | grep -q "OK$\|FAIL-BUSY$" && break
+			[ $i -eq 30 ] && return 1 || sleep 1
 		done
 
 		[ "$1" == "nowait" ] && return
 
 		sleep 3
-		networks=$(${WPACLI} scan_results | awk 'NR>1' | \
+		for i in {1..30}; do
+			networks=$(${WPACLI} scan_results) && break
+			[ $i -eq 30 ] && return 1 || sleep 1
+		done
+		networks=$(echo "${networks}" | awk 'NR>1' | \
 			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6)
 	else
 		ip link set ${INTERFACE} up
