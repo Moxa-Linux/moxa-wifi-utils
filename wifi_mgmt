@@ -17,12 +17,38 @@
 PKG="moxa-wifi-utils"
 VERSION="1.6.1"
 
+PROG=$0
 CONF_DIR=/etc/${PKG}
 RUN_DIR=/var/run/${PKG}
 CONF_FILE=${CONF_DIR}/wifi_mgmt.conf
 IW_SCAN_AWK=${CONF_DIR}/iw-scan.awk
 WPACLI_SCAN_AWK=${CONF_DIR}/wpacli-scan.awk
 
+_lock() {
+        local fd=${1:-$LOCK_FD}
+        local lock_file=${2:-$LOCK_FILE}
+        local wait_timeout=${3:-30}
+
+
+        # create lock file
+        eval "exec $fd>$lock_file"
+
+        # acquier the lock
+        if [ -z "${wait_timeout}" ]; then
+                flock -n $fd
+        else
+                flock -w ${wait_timeout} $fd
+        fi
+        [ $? -eq 0 ] || \
+                 { >&2 echo "Error: ${PROG} is busy, please " \
+                        "wait a moment and try again."; \
+                        _exit 60; }
+        return 0
+}
+
+_unlock() {
+        eval "flock -u ${1:-$LOCK_FD}"
+}
 
 _init_interface () {
 	# update:
@@ -499,9 +525,11 @@ wifi_scan() {
 	else
 		ip link set ${INTERFACE} up
 		sleep 1
+		_lock
 		networks=$(iw ${INTERFACE} scan | awk -f ${IW_SCAN_AWK} | \
 			sort -k 6,6)
 		echo "${networks}" > "${RUN_DIR}/scan-results.${INTERFACE}"
+		_unlock
 	fi
 	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
 	echo "${networks}"
@@ -748,6 +776,9 @@ done
 _init_wpa_supplicant ${INTERFACE}
 _init_wpacli ${INTERFACE}
 _order_from_interface ${INTERFACE}
+
+LOCK_FD=$((SLOT+109))
+LOCK_FILE="${RUN_DIR}/${SLOT}.lock"
 
 for i in $(seq $OPTIND 1 $#); do
 	eval "var=\$$i"
