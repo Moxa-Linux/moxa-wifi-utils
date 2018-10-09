@@ -503,33 +503,38 @@ wifi_stop() {
 }
 
 #Scan all of the AP information
+_wifi_scan_wpa() {
+	for i in {1..30}; do
+		${WPACLI} scan 2>&1 | grep -q "OK$\|FAIL-BUSY$" && break
+		[ $i -eq 30 ] && return 1 || sleep 1
+	done
+
+	[ "$1" == "nowait" ] && return
+
+	sleep 3
+	for i in {1..30}; do
+		networks=$(${WPACLI} scan_results) && break
+		[ $i -eq 30 ] && return 1 || sleep 1
+	done
+	echo "${networks}" | awk 'NR>1' | \
+		awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6
+}
+_wifi_scan_iw() {
+	_lock
+	cat /sys/class/net/$1/carrier > /dev/null 2>&1 \
+		|| (ip link set ${INTERFACE} up; sleep 1)
+	iw ${INTERFACE} scan | awk -f ${IW_SCAN_AWK} | \
+		sort -k 6,6
+	_unlock
+}
 wifi_scan() {
 	local ifname=$(${WPACLI} ifname 2> /dev/null)
 	local networks=""
 
 	if [ "${ifname}" == "${INTERFACE}" ]; then
-		for i in {1..30}; do
-			${WPACLI} scan 2>&1 | grep -q "OK$\|FAIL-BUSY$" && break
-			[ $i -eq 30 ] && return 1 || sleep 1
-		done
-
-		[ "$1" == "nowait" ] && return
-
-		sleep 3
-		for i in {1..30}; do
-			networks=$(${WPACLI} scan_results) && break
-			[ $i -eq 30 ] && return 1 || sleep 1
-		done
-		networks=$(echo "${networks}" | awk 'NR>1' | \
-			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6)
+		networks=$(_wifi_scan_wpa)
 	else
-		ip link set ${INTERFACE} up
-		sleep 1
-		_lock
-		networks=$(iw ${INTERFACE} scan | awk -f ${IW_SCAN_AWK} | \
-			sort -k 6,6)
-		echo "${networks}" > "${RUN_DIR}/scan-results.${INTERFACE}"
-		_unlock
+		networks=$(_wifi_scan_iw)
 	fi
 	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
 	echo "${networks}"
@@ -538,13 +543,14 @@ wifi_scan() {
 wifi_scan_results() {
 	local ifname=$(${WPACLI} ifname 2> /dev/null)
 
-	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
 	if [ "${ifname}" == "${INTERFACE}" ]; then
-		${WPACLI} scan_results | awk 'NR>1' | \
-			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6
+		networks=$(${WPACLI} scan_results | awk 'NR>1' | \
+			awk -f ${WPACLI_SCAN_AWK} | sort -k 6,6)
 	else
-		cat "${RUN_DIR}/scan-results.${INTERFACE}"
+		networks=$(_wifi_scan_iw)
 	fi
+	echo "bssid / frequency / signal level (dBm) / encription / eap / ssid"
+	echo "${networks}"
 }
 
 #Show the AP's signal
