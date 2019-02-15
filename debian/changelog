@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.6.4) unstable; urgency=medium
+
+  * feat: add uc8200 series signald configuration
+
+ -- Harry YJ Jhou <harryyj.jhou@moxa.com>  Fri, 15 Feb 2019 11:19:30 +0800
+
 moxa-wifi-utils (1.6.3) unstable; urgency=medium
 
   * fix: `scan_results` when wpa disabled is useless
