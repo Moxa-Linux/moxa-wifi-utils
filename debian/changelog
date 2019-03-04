@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.6.5) unstable; urgency=medium
+
+  * fix: add UC3100 series modelname with 'T'
+
+ -- Ken CJ Chou <KenCJ.Chou@moxa.com>  Mon, 04 Mar 2019 16:47:50 +0800
+
 moxa-wifi-utils (1.6.4) unstable; urgency=medium
 
   * feat: add uc8200 series signald configuration
