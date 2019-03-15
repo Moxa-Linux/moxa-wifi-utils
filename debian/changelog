@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.6.6) unstable; urgency=medium
+
+  * fix: remove unnecessary wpa_supplicant.conf control from wifi_check function
+
+ -- Wes Huang <Wes.Huang@moxa.com>  Fri, 15 Mar 2019 10:28:21 +0800
+
 moxa-wifi-utils (1.6.5) unstable; urgency=medium
 
   * fix: add UC3100 series modelname with 'T'
