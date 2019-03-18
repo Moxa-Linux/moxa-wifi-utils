@@ -15,7 +15,7 @@
 #--------- initial Global variable ---------
 
 PKG="moxa-wifi-utils"
-VERSION="1.6.5"
+VERSION="1.6.6"
 
 PROG=$0
 CONF_DIR=/etc/${PKG}
@@ -335,16 +335,6 @@ wifi_dhclient() {
 
 #Check whether wpa_supplicant is running
 wifi_check() {
-	if [ x"$(cat ${CONF_DIR}/wpa_supplicant.conf | grep network )" == x"" ]; then
-		echo 'network={' >> ${CONF_DIR}/wpa_supplicant.conf
-		echo '        ssid="Test"' >> ${CONF_DIR}/wpa_supplicant.conf
-		echo '        psk="testtest"' >> ${CONF_DIR}/wpa_supplicant.conf
-		echo '        key_mgmt=WPA-PSK' >> ${CONF_DIR}/wpa_supplicant.conf
-		echo '        group=CCMP TKIP' >> ${CONF_DIR}/wpa_supplicant.conf
-		echo '}' >> ${CONF_DIR}/wpa_supplicant.conf
-	fi
-
-
 	if [ -a /var/run/wpa_supplicant$ORDER.pid ]; then
         	echo "wifi_mgmt is already run!"
        		exit 1
