@@ -1,3 +1,10 @@
+moxa-wifi-utils (1.7.0) unstable; urgency=medium
+
+  * feat: complete uc8580-lx.conf
+  * fix: fix uc8540-lx.conf
+
+ -- Alif Chen <alif.chen@moxa.com>  Thu, 25 Apr 2019 10:56:04 +0800
+
 moxa-wifi-utils (1.6.6) unstable; urgency=medium
 
   * fix: remove unnecessary wpa_supplicant.conf control from wifi_check function
