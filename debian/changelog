@@ -1,3 +1,9 @@
+moxa-wifi-utils (1.8.4) stretch; urgency=medium
+
+  * fix: check link status before get signal
+
+ -- Ken CJ Chou <KenCJ.Chou@moxa.com>  Fri, 24 Jul 2020 16:45:49 +0800
+
 moxa-wifi-utils (1.8.3) stretch; urgency=medium
 
   * fix: update uc8200.conf
