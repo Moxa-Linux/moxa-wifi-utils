@@ -100,7 +100,12 @@ _loop() {
 		modules=$(${WIFI_MGMT} interfaces)
 		for i in $(seq 0 $((modules-1))); do
 			slot=$(${WIFI_MGMT} -i wlan$i slot)
-			signal=$(${WIFI_MGMT} -i wlan$i signal)
+			connected="$(iw wlan$i link)"
+			if [ "${connected}" = "Not connected." ]; then
+				signal="N/A"
+			else
+				signal=$(${WIFI_MGMT} -i wlan$i signal)
+			fi
 			_signal_led ${slot} "${signal}"
 		done
 		sleep ${INTERVAL}
